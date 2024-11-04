@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>STRAY: Find your family</title>
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=feuro0sdsl"></script>
+     <style>
+        #map {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0px;
+            left: 20px;
+            z-index: 1000;
+        }
+        /* 추가한 스타일링 */
+        .popup-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            z-index: 9999;
+            display: none; /* 초기에는 숨겨둠 */
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="overlay">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="width: 180px; height: 180px;">
+</div>
+<!-- 추가한 팝업 컨테이너 -->
+<div id="popup" class="popup-container">
+    <img id="popup-image" style="width: 100%; height: auto;">
+    <button onclick="closePopup()">창 닫기</button>
+</div>
+<script>
+
+var mapOptions = {
+    center: new naver.maps.LatLng(37.3595704, 127.105399),
+    zoom: 10,
+    minZoom: 9.0
+};
+
+var map = new naver.maps.Map('map', mapOptions);
+
+// Flask에서 전달한 딕셔너리 리스트를 JavaScript로 가져오기
+var markerDataList = {{ markerList | tojson | safe }};
+
+markerDataList.forEach(function(markerData) {
+    var markerOptions = {
+        position: new naver.maps.LatLng(markerData.latitude, markerData.longitude),
+        map: map,
+        icon: {
+            content: '<img src="' + markerData.image_link + '" style="width:40px; height:40px;">',
+            size: new naver.maps.Size(40, 40),
+            anchor: new naver.maps.Point(20, 40) // 이미지의 중심 아래로 설정
+        },
+    };
+    var marker = new naver.maps.Marker(markerOptions);
+
+    naver.maps.Event.addListener(map, 'zoom_changed', function() {
+        var currentZoom = map.getZoom();
+
+        if (currentZoom < 12) {
+            marker.setMap(null);
+        } else {
+            marker.setMap(map);
+        }
+    });
+    // 텍스트 추가
+    var infoWindow = new naver.maps.InfoWindow({
+        content: '<div style="padding:10px;">종: '+ markerData.species + '<br>발견시간: ' + markerData.time + '</div>'
+    });
+
+    let isOpen = false
+
+    naver.maps.Event.addListener(marker, 'click', function() {
+        if(isOpen){
+            infoWindow.close();
+        }else{
+            infoWindow.open(map, marker.getPosition());
+        }
+        isOpen = !isOpen
+    });
+});
+
+
+
+function showPopup(imageLink) {
+    // 팝업창 열기
+    var popup = document.getElementById('popup');
+    var popupImage = document.getElementById('popup-image');
+    popupImage.src = imageLink;
+    popup.style.display = 'block';
+}
+
+function closePopup() {
+    // 팝업창 닫기
+    var popup = document.getElementById('popup');
+    popup.style.display = 'none';
+
+    // 여기에 오늘 하루 다시 보지 않음 처리를 추가할 수 있어.
+    // 예를 들어 쿠키를 이용하거나 서버에 저장해서 처리할 수 있어.
+    console.log("오늘 하루 다시 보지 않음 처리");
+}
+
+showPopup("{{ url_for('static', filename='popup.png') }}");
+
+</script>
+</body>
+</html>
